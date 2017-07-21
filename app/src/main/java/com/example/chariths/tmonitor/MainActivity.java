@@ -1,5 +1,6 @@
 package com.example.chariths.tmonitor;
 
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -17,9 +18,8 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 public class MainActivity extends AppCompatActivity {
 
-    // Server and topic declarations
-    private final String serverUri = "tcp://broker.hivemq.com:1883";
-    private final String clientID = "iotAndroidsbjkdajsbvkjvkxfgd";
+    private final String TAG = "MainActivity";
+
     private final String subscriptionTopic = "ServerMaathrukawa";
     private final String publishTopic = "ClientMaathrukawa";
     private final String publishMessage = "Hello World!";
@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         messageView = (EditText) findViewById(R.id.messageView);
-        mqttClient = new MqttAndroidClient(getApplicationContext(), serverUri, clientID);
+        mqttClient = new MqttAndroidClient(getApplicationContext(), MQTTContract.serverUri, MQTTContract.clientID);
         mqttClient.setCallback(new MqttCallback() {
             @Override
             public void connectionLost(Throwable cause) {
@@ -74,7 +74,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), "Faliure", Toast.LENGTH_SHORT).show();
             }
         });
-
     }
 
     public void subscribeToTopic() throws MqttException {
@@ -97,4 +96,5 @@ public class MainActivity extends AppCompatActivity {
         mqttMessage.setPayload(this.publishMessage.getBytes());
         mqttClient.publish(publishTopic, mqttMessage);
     }
+    
 }
