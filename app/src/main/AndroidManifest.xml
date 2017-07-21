@@ -24,7 +24,6 @@
 
         <service android:name="org.eclipse.paho.android.service.MqttService" />
 
-        <activity android:name=".StatiscicsActivity"></activity>
     </application>
 
 </manifest>

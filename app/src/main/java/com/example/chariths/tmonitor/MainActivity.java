@@ -1,11 +1,21 @@
 package com.example.chariths.tmonitor;
 
+import android.app.Fragment;
+import android.app.FragmentManager;
 import android.content.Intent;
+import android.content.res.Configuration;
+import android.net.Uri;
 import android.preference.PreferenceManager;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import org.eclipse.paho.android.service.MqttAndroidClient;
@@ -13,128 +23,136 @@ import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements CurrentConditions.OnFragmentInteractionListener, PastConditions.OnFragmentInteractionListener{
 
     private final String TAG = "MainActivity";
 
-    private MqttAndroidClient mqttClient;
-    private EditText messageView;
+    private String[] fragmentTitles;
+    private DrawerLayout drawerLayout;
+    private ListView mDrawerList;
+
+
+    private DrawerLayout mDrawerLayout;
+    private ActionBarDrawerToggle mDrawerToggle;
+    private CharSequence mDrawerTitle;
+    private CharSequence mTitle = "IOTApp";
+    private int currentFragment = -1;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        messageView = (EditText) findViewById(R.id.messageView);
-        mqttClient = new MqttAndroidClient(getApplicationContext(), MQTTContract.serverUri, "1780662352");
-        mqttClient.setCallback(new MqttCallback() {
-            @Override
-            public void connectionLost(Throwable cause) {
-                messageView.setText(messageView.getText()+"\nConnection Lost!");
+        fragmentTitles = new String[]{"Current Condition", "History"};
+        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        mDrawerList = (ListView) findViewById(R.id.left_drawer);
+
+        mDrawerList.setAdapter(new ArrayAdapter<String>(this,
+                android.R.layout.simple_list_item_1, fragmentTitles));
+        // Set the list's click listener
+        mDrawerList.setOnItemClickListener(new DrawerItemClickListener());
+
+        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        mDrawerToggle = new ActionBarDrawerToggle(
+                this,                  /* host Activity */
+                mDrawerLayout,         /* DrawerLayout object */
+                R.string.drawer_open,  /* "open drawer" description */
+                R.string.drawer_close  /* "close drawer" description */
+        ) {
+
+            /** Called when a drawer has settled in a completely closed state. */
+            public void onDrawerClosed(View view) {
+                super.onDrawerClosed(view);
+                getSupportActionBar().setTitle(mTitle);
             }
 
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
-                messageView.setText(messageView.getText()+"\nMessage arrived : "+ new String(message.getPayload()));
+            /** Called when a drawer has settled in a completely open state. */
+            public void onDrawerOpened(View drawerView) {
+                super.onDrawerOpened(drawerView);
+                getSupportActionBar().setTitle(mDrawerTitle);
             }
+        };
 
-            @Override
-            public void deliveryComplete(IMqttDeliveryToken token) {
-                messageView.setText(messageView.getText()+"\nDelivered!");
-            }
-        });
-    }
+        // Set the drawer toggle as the DrawerListener
+        mDrawerLayout.addDrawerListener(mDrawerToggle);
 
-    public void connect(View v) throws MqttException {
-        MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-        mqttConnectOptions.setCleanSession(false);
-
-        mqttClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
-            @Override
-            public void onSuccess(IMqttToken asyncActionToken) {
-
-                try {
-                    subscribeToTopic();
-                } catch (MqttException e) {
-                    Toast.makeText(getApplicationContext(), "Success", Toast.LENGTH_SHORT).show();
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                Toast.makeText(getApplicationContext(), "Faliure", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    public void subscribeToTopic() throws MqttException {
-        final IMqttToken token = mqttClient.subscribe(MQTTContract.SubscriptionTopicPresent, 0);
-        token.setActionCallback(new IMqttActionListener() {
-            @Override
-            public void onSuccess(IMqttToken asyncActionToken) {
-                messageView.setText(messageView.getText()+ "\nSubd successfull!");
-            }
-
-            @Override
-            public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                messageView.setText(messageView.getText()+"\nConnection Failed!");
-            }
-        });
-    }
-
-    public void unsubscribeTopic(){
-        try {
-            IMqttToken unsubToken = mqttClient.unsubscribe(MQTTContract.SubscriptionTopicPresent);
-            unsubToken.setActionCallback(new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    // The subscription could successfully be removed from the client
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken,
-                                      Throwable exception) {
-                    // some error occurred, this is very unlikely as even if the client
-                    // did not had a subscription to the topic the unsubscribe action
-                    // will be successfully
-                }
-            });
-        } catch (MqttException e) {
-            e.printStackTrace();
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeButtonEnabled(true);
         }
-    }
 
-    public void publishMessage() throws MqttException {
-        MqttMessage mqttMessage = new MqttMessage();
-        mqttMessage.setPayload("Hello".getBytes());
-        mqttClient.publish(MQTTContract.publishTopic, mqttMessage);
     }
 
     @Override
-    protected void onPause(){
-        unsubscribeTopic();
-        super.onPause();
+    protected void onPostCreate(Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        // Sync the toggle state after onRestoreInstanceState has occurred.
+        mDrawerToggle.syncState();
     }
 
-    protected void onResume(){
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        mDrawerToggle.onConfigurationChanged(newConfig);
+    }
 
-        if (mqttClient != null && mqttClient.isConnected()) {
-            try {
-                subscribeToTopic();
-            } catch (MqttException e) {
-                e.printStackTrace();
-            }
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Pass the event to ActionBarDrawerToggle, if it returns
+        // true, then it has handled the app icon touch event
+        if (mDrawerToggle.onOptionsItemSelected(item)) {
+            return true;
         }
-        super.onResume();
+        // Handle your other action bar items...
+
+        return super.onOptionsItemSelected(item);
     }
 
-    public void nextPage(View v){
-        Intent nextPage = new Intent(this, StatiscicsActivity.class);
-        startActivity(nextPage);
+    @Override
+    public void onFragmentInteraction(Uri uri) {
+
+    }
+
+
+    private class DrawerItemClickListener implements ListView.OnItemClickListener {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            selectItem(position);
+        }
+    }
+    /** Swaps fragments in the main content view */
+    private void selectItem(int position) {
+        if (position == currentFragment){
+            mDrawerList.setItemChecked(position, true);
+            mDrawerLayout.closeDrawer(mDrawerList);
+            return;
+        }
+        android.support.v4.app.Fragment currentConditions = new CurrentConditions();
+        Bundle args = new Bundle();
+        //args.putInt(CurrentConditions.ARG_PLANET_NUMBER, position);
+        //fragment.setArguments(args);
+        // Insert the fragment by replacing any existing fragment
+
+        android.support.v4.app.FragmentManager fragmentManager = getSupportFragmentManager();
+        fragmentManager.beginTransaction()
+                .replace(R.id.content_frame, currentConditions)
+                .commit();
+
+        mDrawerList.setItemChecked(position, true);
+        setTitle(fragmentTitles[position]);
+        mDrawerLayout.closeDrawer(mDrawerList);
+        currentFragment = position;
+    }
+
+    @Override
+    public void setTitle(CharSequence title) {
+        mTitle = title;
+        getSupportActionBar().setTitle(mTitle);
     }
 }
