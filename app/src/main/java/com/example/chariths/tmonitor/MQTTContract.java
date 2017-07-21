@@ -8,7 +8,8 @@ public class MQTTContract {
     // Server and topic declarations
     public static final String serverUri = "tcp://broker.hivemq.com:1883";
     public static final String clientID = "iotAndroidsbjkdajsbvkjvkxfgd";
-    public final String subscriptionTopic = "ServerMaathrukawa";
-    public final String publishTopic = "ClientMaathrukawa";
-    public final String publishMessage = "Hello World!";
+    public static final String SubscriptionTopicPresent = "ServerMaathrukawa";
+    public static final String SubscriptionTopicStat = "Serverthrukawa25893";
+    public static final String publishTopic = "ClientMaathrukawa";
+    public static final String publishMessage = "Hello World!";
 }
